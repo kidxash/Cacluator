@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Simple Student Grade Calculator - Serverless Application
+
+Resources:
+  # Lambda Function - Calculates grade averages
+  GradeCalculatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: simple-grade-calculator
+      CodeUri: .
+      Handler: simple-lambda.lambda_handler
+      Runtime: python3.9
+      Timeout: 10
+      MemorySize: 128
+      Description: Calculate average grade for students
+      Events:
+        # POST /calculate endpoint
+        CalculateApi:
+          Type: Api
+          Properties:
+            Path: /calculate
+            Method: post
+        # OPTIONS /calculate endpoint (for CORS)
+        OptionsApi:
+          Type: Api
+          Properties:
+            Path: /calculate
+            Method: options
+
+Outputs:
+  # API Gateway URL - use this in your HTML
+  ApiUrl:
+    Description: 'API Gateway endpoint URL - Copy this to simple-index.html'
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/calculate'
+  
+  # Lambda Function Name
+  FunctionName:
+    Description: 'Lambda function name'
+    Value: !Ref GradeCalculatorFunction

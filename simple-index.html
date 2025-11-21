@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grade Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        h3 {
+            color: #666;
+            text-align: center;
+            margin-top: 0;
+            font-weight: normal;
+        }
+        label {
+            display: block;
+            margin: 15px 0 5px 0;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .btn-clear {
+            background: #6c757d;
+        }
+        .btn-clear:hover {
+            background: #545b62;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .success {
+            background: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: white;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 Student Grade Calculator</h1>
+        <h3>Assignment 3 - Serverless Computing</h3>
+        
+        <form id="gradeForm">
+            <label for="studentId">Student ID:</label>
+            <input type="text" id="studentId" required placeholder="Enter Student ID (e.g., S12345)">
+            
+            <label>Enter Grades (0-100):</label>
+            <input type="number" id="grade1" min="0" max="100" step="0.1" placeholder="Grade 1">
+            <input type="number" id="grade2" min="0" max="100" step="0.1" placeholder="Grade 2">
+            <input type="number" id="grade3" min="0" max="100" step="0.1" placeholder="Grade 3">
+            
+            <div style="text-align: center;">
+                <button type="submit">Calculate Average</button>
+                <button type="button" class="btn-clear" onclick="clearForm()">Clear</button>
+            </div>
+        </form>
+        
+        <div id="result" class="result"></div>
+    </div>
+    
+    <div class="footer">
+        <p>Cloud Computing Assignment | Powered by AWS Lambda & API Gateway</p>
+    </div>
+
+    <script>
+        // IMPORTANT: Replace this URL with your actual API Gateway URL after deployment
+        const API_URL = 'https://kquy7uyw5g.execute-api.us-east-2.amazonaws.com/prod';
+        
+        document.getElementById('gradeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const studentId = document.getElementById('studentId').value;
+            const grade1 = document.getElementById('grade1').value;
+            const grade2 = document.getElementById('grade2').value;
+            const grade3 = document.getElementById('grade3').value;
+            
+            // Collect valid grades
+            const grades = [];
+            if (grade1) grades.push(parseFloat(grade1));
+            if (grade2) grades.push(parseFloat(grade2));
+            if (grade3) grades.push(parseFloat(grade3));
+            
+            // Validation
+            if (!studentId.trim()) {
+                showResult('❌ Please enter a Student ID', 'error');
+                return;
+            }
+            
+            if (grades.length === 0) {
+                showResult('❌ Please enter at least one grade', 'error');
+                return;
+            }
+            
+            // Check if using placeholder URL (test mode)
+            if (API_URL.includes('kquy7uyw5g.execute-api.us-east-2.amazonaws.com')) {
+                // LOCAL TEST MODE - Calculate without calling API
+                const average = grades.reduce((sum, grade) => sum + grade, 0) / grades.length;
+                showResult(`
+                    <strong>✅ Test Mode (Local Calculation)</strong><br><br>
+                    <strong>Student ID:</strong> ${studentId}<br>
+                    <strong>Grades:</strong> ${grades.join(', ')}<br>
+                    <strong>Average:</strong> ${average.toFixed(2)}<br><br>
+                    <em>Deploy to AWS and update API_URL to use Lambda function</em>
+                `, 'success');
+                return;
+            }
+            
+            // CALL AWS LAMBDA via API Gateway
+            try {
+                showResult('⏳ Calculating...', 'success');
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        grades: grades
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult(`
+                        <strong>✅ Calculation Complete (AWS Lambda)</strong><br><br>
+                        <strong>Student ID:</strong> ${data.student_id}<br>
+                        <strong>Grades:</strong> ${data.grades.join(', ')}<br>
+                        <strong>Average:</strong> ${data.average}<br>
+                        <strong>Grade Count:</strong> ${data.grade_count}
+                    `, 'success');
+                } else {
+                    showResult('❌ Error: ' + data.message, 'error');
+                }
+            } catch (error) {
+                showResult('❌ Error connecting to server: ' + error.message, 'error');
+            }
+        });
+        
+        function showResult(message, type) {
+            const result = document.getElementById('result');
+            result.innerHTML = message;
+            result.className = `result ${type}`;
+            result.style.display = 'block';
+        }
+        
+        function clearForm() {
+            document.getElementById('gradeForm').reset();
+            document.getElementById('result').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
